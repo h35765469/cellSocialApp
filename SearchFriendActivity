@@ -169,6 +169,6 @@ public class SearchFriendActivity extends AppCompatActivity {
 
     //獲取用戶頭像
     public static Drawable getUserImage(String user){
-
+        fuck
     }
 }
