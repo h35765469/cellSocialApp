@@ -18,6 +18,8 @@ import android.widget.SimpleAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.user.chatsystem1.FormatTools.FormatTools;
+
 import org.jivesoftware.smack.Chat;
 import org.jivesoftware.smack.ChatManager;
 import org.jivesoftware.smack.MessageListener;
@@ -37,9 +39,12 @@ import org.jivesoftware.smack.provider.ProviderManager;
 import org.jivesoftware.smackx.Form;
 import org.jivesoftware.smackx.ReportedData;
 import org.jivesoftware.smackx.ServiceDiscoveryManager;
+import org.jivesoftware.smackx.packet.VCard;
 import org.jivesoftware.smackx.search.UserSearch;
 import org.jivesoftware.smackx.search.UserSearchManager;
 
+import java.io.ByteArrayInputStream;
+import java.text.Format;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -56,6 +61,7 @@ public class SearchFriendActivity extends AppCompatActivity {
     String string2 = " ";
     XMPPConnection connection;
     ListView Friendlist;
+    Drawable imageicon;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,8 +84,8 @@ public class SearchFriendActivity extends AppCompatActivity {
      //查询用户(
     public void SearchFriend(final String userName){
         String searchtext = Search.getText().toString();
-        HashMap<String,String>user =null;
-        List<HashMap<String,String>>results = new ArrayList<HashMap<String,String>>();
+        HashMap<String,Object>user =null;
+        List<HashMap<String,Object>>SearchResult = new ArrayList<HashMap<String,Object>>();
         if(searchtext.equals("")){
             Toast.makeText(SearchFriendActivity.this,"輸入訊息不能為空",Toast.LENGTH_SHORT).show();
         }
@@ -88,24 +94,24 @@ public class SearchFriendActivity extends AppCompatActivity {
                     XMPPConnection connection = XmppConnection.getConnection();
                     UserSearchManager searchmanager = new UserSearchManager(connection);
                     Form searchform = null;
-                    searchform = searchmanager.getSearchForm("search.192.168.0.6");
+                    searchform = searchmanager.getSearchForm("search.10.1.211.134");
                     Form answerform = searchform.createAnswerForm();
                     answerform.setAnswer("Username"  , true);
                     answerform.setAnswer("search",userName);
                     ReportedData data = null;
-                    data = searchmanager.getSearchResults(answerform, "search.192.168.0.6");
+                    data = searchmanager.getSearchResults(answerform, "search.10.1.211.134");
                     if(data != null && data.getRows()!=null){
                         Iterator<ReportedData.Row> it = data.getRows();
                         ReportedData.Row row = null;
                         String ans = " ";
                         while(it.hasNext()){
                             row = it.next();
-                            user = new HashMap<String,String>();
-                            user.put("Username",row.getValues("Username").next().toString());
-                            results.add(user);
+                            user = new HashMap<String,Object>();
+                            imageicon = getUserImage(row.getValues("Username").next().toString());
+                            user.put("Username", row.getValues("Username").next().toString());
+                            user.put("ImageIcon",imageicon);
+                            SearchResult.add(user);
                             ans+=row.getValues("Username").next().toString()+"\n";
-                            System.out.println(row.getValues("Username").next().toString());
-                            System.out.println(row.getValues("Email").next().toString());
                         }
                     }else{
                         System.out.println("輕鬆自在");
@@ -116,7 +122,7 @@ public class SearchFriendActivity extends AppCompatActivity {
 
 
                 //獲取朋友資訊 , 包括頭貼(可用)
-                SimpleAdapter listItemAadpter = new SimpleAdapter(this,results,R.layout.friendlist,new String[]{"Username"} , new int[]{R.id.title} );
+                SimpleAdapter listItemAadpter = new SimpleAdapter(this,SearchResult,R.layout.friendlist,new String[]{"Username","ImageIcon"} , new int[]{R.id.title , R.id.image} );
                 Friendlist.setAdapter(listItemAadpter);
                 Friendlist.setOnItemClickListener(new AdapterView.OnItemClickListener() {
                     public void onItemClick(AdapterView<?> parent, View view,
@@ -169,6 +175,21 @@ public class SearchFriendActivity extends AppCompatActivity {
 
     //獲取用戶頭像
     public static Drawable getUserImage(String user){
-        fuck
+        ByteArrayInputStream bais = null;
+        XMPPConnection connection = XmppConnection.getConnection();
+        try{
+            VCard vcard = new VCard();
+            ProviderManager.getInstance().addIQProvider("vCard", "vcard-temp", new org.jivesoftware.smackx.provider.VCardProvider());
+            vcard.load(connection,user+"@"+connection.getServiceName());
+            if(vcard == null || vcard.getAvatar() == null)
+                return null;
+            bais = new ByteArrayInputStream(vcard.getAvatar());
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+        if(bais == null) {
+            return null;
+        }
+        return FormatTools.getInstance().InputStreamToDrawable(bais);
     }
 }
