@@ -42,7 +42,7 @@ public class ChatActivity extends AppCompatActivity {
     private ArrayList<HashMap<String, Object>> chatList = new ArrayList<HashMap<String,Object>>();
     String[] from = {"img","text"};
     int[] to = {R.id.img_me,R.id.text_me,R.id.img_friend,R.id.text_friend};
-    int[] item_layout = {R.layout.i_sendmsg_item,R.layout.friend_sendmsg_item};
+    int[] item_layout = {R.layout.my_message_item,R.layout.friend_message_item};
     private ListView listview_chat;
     private MyAdapter myAdapter;
 
@@ -54,7 +54,7 @@ public class ChatActivity extends AppCompatActivity {
         img_send = (ImageView) findViewById(R.id.img_send);
         edit_chat = (EditText) findViewById(R.id.edit_chat);
         listview_chat = (ListView) findViewById(R.id.listview_chat);
-        text_title = (TextView) findViewById(R.id.text_title);
+        //text_title = (TextView) findViewById(R.id.text_title);
 
         myAdapter = new MyAdapter(this, chatList, item_layout, from, to);
 
@@ -62,7 +62,7 @@ public class ChatActivity extends AppCompatActivity {
         name = getIntent().getStringExtra("name");
         password = getIntent().getStringExtra("password");
         friend = getIntent().getStringExtra("friend");
-        text_title.setText(friend);
+        //text_title.setText(friend);
         try {
             connection.login(name, password);
         } catch (XMPPException e) {
@@ -135,7 +135,7 @@ public class ChatActivity extends AppCompatActivity {
             String ChatHandler = b.getString("msg");
             String friend = b.getString("friend");
 
-            text_title.setText(friend);
+            //text_title.setText(friend);
             addChatToListview(1, ChatHandler);
 
             //将ListView设置为置底显示，自动刷新UI，使得消息及时显示
@@ -148,7 +148,7 @@ public class ChatActivity extends AppCompatActivity {
     public void addChatToListview(int who,String chat){
         HashMap<String,Object> map = new HashMap<String,Object>();
         map.put("who", who);
-        map.put("img", who==0?R.drawable.touxiang1:R.drawable.touxiang5);
+        map.put("img", who==0?R.drawable.boom:R.drawable.images);
         map.put("chat", chat);
         chatList.add(map);
     }
@@ -192,20 +192,20 @@ public class ChatActivity extends AppCompatActivity {
 
         @Override
         public View getView(int item, View view, ViewGroup parent) {
-            //获取当前子项的who和chat
+            //獲取當前who is call
             int who = (Integer)chatList.get(item).get("who");
             String msg = (String)chatList.get(item).get("chat");
             //根据who设置当前子项的布局和文本，0为自己发送的布局，1为好友发送的布局
             if(who==0)
             {
-                view=listcontainer.inflate(R.layout.i_sendmsg_item, null);
+                view=listcontainer.inflate(R.layout.my_message_item, null);
                 ((TextView)view.findViewById(R.id.text_me)).setText(msg);
                 ((ImageView)view.findViewById(R.id.img_me)).setImageDrawable(img_userDrawable);
                 return view;
             }
             else
             {
-                view=listcontainer.inflate(R.layout.friend_sendmsg_item, null);
+                view=listcontainer.inflate(R.layout.friend_message_item, null);
                 ((TextView)view.findViewById(R.id.text_friend)).setText(msg);
                 ((ImageView)view.findViewById(R.id.img_friend)).setImageDrawable(img_friendDrawable);
                 return view;
