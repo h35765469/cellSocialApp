@@ -1,0 +1,156 @@
+package com.example.user.chatsystem1.fragment;
+
+import android.app.ListFragment;
+import android.graphics.drawable.Drawable;
+import android.os.Bundle;
+import android.support.annotation.Nullable;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.ListView;
+import android.widget.SimpleAdapter;
+import android.widget.Toast;
+
+import com.example.user.chatsystem1.FormatTools.FormatTools;
+import com.example.user.chatsystem1.R;
+import com.example.user.chatsystem1.XmppConnection;
+
+import org.jivesoftware.smack.Roster;
+import org.jivesoftware.smack.RosterEntry;
+import org.jivesoftware.smack.XMPPConnection;
+import org.jivesoftware.smack.XMPPException;
+import org.jivesoftware.smack.provider.ProviderManager;
+import org.jivesoftware.smackx.packet.VCard;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.security.Provider;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Created by user on 2015/11/13.
+ */
+public class FriendFragment extends ListFragment {
+    XMPPConnection connection = XmppConnection.getConnection();
+
+    private Roster roster;
+    @Override
+    public View onCreateView(LayoutInflater inflater,@Nullable ViewGroup container,@Nullable Bundle saveInstanceState){
+        return inflater.inflate(R.layout.friendfragment,container,false);
+    }
+
+    @Override
+    public void onCreate(Bundle savedInstanceState){
+        super.onCreate(savedInstanceState);
+        try {
+            connection.login("ss","ss");
+        } catch (XMPPException e) {
+            e.printStackTrace();
+        }
+        final String[] str = new String[]{"image","name"};
+        final int[] id = new int[]{R.id.tab2_item_img,R.id.tab2_item_name};
+
+        //使用SimpleAdapter進行搭配ListView內容
+        SimpleAdapter adapter = new SimpleAdapter(getActivity(),getSimpleData(),R.layout.friendfragment_item,str,id);
+        this.setListAdapter(adapter);
+
+        //SimpleAdapter只能搭配控件使用drawable目錄下的圖片及R.drawable.xx
+        //為了獲取我們從服務器得到的Drawable類型圖片 , 必須要用到
+        adapter.setViewBinder(new SimpleAdapter.ViewBinder() {
+            @Override
+            public boolean setViewValue(View view, Object data, String textRepresentation) {
+                if(view instanceof ImageView && data instanceof Drawable){
+                    ImageView iv = (ImageView)view;
+                    iv.setImageDrawable((Drawable)data);
+                    return true;
+                }
+                return false;
+            }
+        });
+    }
+
+    //獲取ListView的資料
+    private List<Map<String,Object>> getSimpleData(){
+        List<Map<String,Object>>list = new ArrayList<Map<String,Object>>();
+
+        //獲取Roster
+        roster = connection.getRoster();
+        //通過getallEntries() 獲取Roster對象的好友清單
+        List<RosterEntry>friendlist = this.getallEntries(roster);
+
+        //創建對應值
+        Map<String,Object>map = new HashMap<String,Object>();
+
+        for(int i = 0 ; i < friendlist.size() ; i++){
+            map = new HashMap<String,Object>();
+            map.put("name",friendlist.get(i).getName());
+            //獲取好友頭像
+            Drawable imgDrawable = this.getUserImage(connection,friendlist.get(i).getName());
+            if(imgDrawable == null){
+                map.put("img" ,R.drawable.images);
+            }else{
+                map.put("img",imgDrawable);
+            }
+            list.add(map);
+        }
+        return list;
+    }
+
+    //ListView 點擊事件
+    @Override
+    public void onListItemClick(ListView lv , View v , int position , long id ){
+        Toast.makeText(getActivity(),"Select" + position,Toast.LENGTH_SHORT).show();
+        // 獲取點擊位置listView項名為name的值 , 即好友的用戶
+        Map<String,Object> m = getSimpleData().get(position);
+        Iterator it = m.keySet().iterator();
+        Object o = m.get("name");
+        String friend = o.toString();
+    }
+
+    //查詢所有好友
+    public List<RosterEntry>getallEntries(Roster roster){
+        List<RosterEntry>Entrieslist = new ArrayList<RosterEntry>();
+        Collection<RosterEntry> rosterEntry = roster.getEntries();
+        Iterator<RosterEntry> i = rosterEntry.iterator();
+        while(i.hasNext()){
+            Entrieslist.add(i.next());
+        }
+        return Entrieslist;
+    }
+
+    //指定用戶頭像
+    public Drawable getUserImage(XMPPConnection connection , String user){
+        ByteArrayInputStream bais = null;
+
+        if(connection == null){
+            return null;
+        }
+
+        try{
+            VCard vcard = new VCard();
+            ProviderManager.getInstance().addIQProvider("vCard", "vcard-temp",
+                    new org.jivesoftware.smackx.provider.VCardProvider());
+            vcard.load(connection,user.trim() + "@" + connection.getServiceName());
+
+            if(user == "" || user == null || user.trim().length() <=0){
+                return null;
+            }
+
+            if(vcard == null || vcard.getAvatar() == null){
+                return null;
+            }
+            bais = new ByteArrayInputStream(vcard.getAvatar());
+        }catch(Exception e){
+            e.printStackTrace();;
+            return null;
+        }
+        return FormatTools.getInstance().InputStreamToDrawable(bais);
+    }
+
+}
