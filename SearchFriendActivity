@@ -96,12 +96,12 @@ public class SearchFriendActivity extends AppCompatActivity {
                     XMPPConnection connection = XmppConnection.getConnection();
                     UserSearchManager searchmanager = new UserSearchManager(connection);
                     Form searchform = null;
-                    searchform = searchmanager.getSearchForm("search.192.168.0.103");
+                    searchform = searchmanager.getSearchForm("search.192.168.0.104");
                     Form answerform = searchform.createAnswerForm();
                     answerform.setAnswer("Username"  , true);
                     answerform.setAnswer("search",userName);
                     ReportedData data = null;
-                    data = searchmanager.getSearchResults(answerform, "search.192.168.0.103");
+                    data = searchmanager.getSearchResults(answerform, "search.192.168.0.104");
                     if(data != null && data.getRows()!=null){
                         Iterator<ReportedData.Row> it = data.getRows();
                         ReportedData.Row row = null;
@@ -214,4 +214,3 @@ public class SearchFriendActivity extends AppCompatActivity {
     }
 
 }
-
