@@ -1,20 +1,27 @@
 package com.example.user.chatsystem1;
 
 import android.content.Intent;
+import android.graphics.drawable.Drawable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.SimpleAdapter;
+
+import com.example.user.chatsystem1.FormatTools.FormatTools;
+import com.example.user.chatsystem1.fragment.ChatActivity;
 
 import org.jivesoftware.smack.Roster;
 import org.jivesoftware.smack.RosterEntry;
 import org.jivesoftware.smack.RosterGroup;
 import org.jivesoftware.smack.XMPPConnection;
+import org.jivesoftware.smack.provider.ProviderManager;
 import org.jivesoftware.smackx.packet.VCard;
 
+import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -23,6 +30,7 @@ import java.util.List;
 
 public class FriendListActivity extends AppCompatActivity {
     ListView friendlist;
+    Drawable imageicon;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,40 +42,81 @@ public class FriendListActivity extends AppCompatActivity {
 
     //好友列表(可用)
     public void friendlist(){
-        XMPPConnection connection = XmppConnection.getConnection();
-        HashMap<String,String>friends = null;
-        List<HashMap<String,String>>Flist = new ArrayList<HashMap<String, String>>();
+        final XMPPConnection connection = XmppConnection.getConnection();
+        HashMap<String,Object>friends = null;
+        List<HashMap<String,Object>>Flist = new ArrayList<HashMap<String, Object>>();
         Roster roster = connection.getRoster();
         Iterator<RosterEntry> iter = roster.getEntries().iterator();
         while(iter.hasNext()){
             RosterEntry entry = iter.next();
-            friends = new HashMap<String,String>();
+            friends = new HashMap<String,Object>();
+            imageicon = getUserImage(entry.getUser());
+            if(imageicon == null){
+                friends.put("ImageIcon" ,R.drawable.test);
+            }else{
+                friends.put("ImageIcon",imageicon);
+            }
             friends.put("FriendList", entry.getUser());
             Flist.add(friends);
         }
 
-        SimpleAdapter adapter = new SimpleAdapter(this,Flist,R.layout.friendlist,new String[]{"FriendList"},
-                new int[]{R.id.title}
+        SimpleAdapter adapter = new SimpleAdapter(this,Flist,R.layout.friendlist,new String[]{"FriendList","ImageIcon"},
+                new int[]{R.id.title ,  R.id.image2}
                 );
         friendlist.setAdapter(adapter);
+
+        //SimpleAdapter只能為控制元件搭配drawable目錄下的圖片即R.drawable.xx
+        //為了獲取我們從服務器Drawable類型圖片 , 必須使用ViewBinder
+
+        adapter.setViewBinder(new SimpleAdapter.ViewBinder() {
+            @Override
+            public boolean setViewValue(View view, Object data, String textRepresentation) {
+                if(view instanceof ImageView && data instanceof  Drawable){
+                    ImageView iv = (ImageView)view;
+                    iv.setImageDrawable((Drawable)data);
+                    return true;
+                }
+                return false;
+            }
+        });
+
         friendlist.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                HashMap<String,String>friendmap = (HashMap<String,String>)friendlist.getItemAtPosition(position);
-                final String name = friendmap.get("FriendList");
+                HashMap<String, String> friendmap = (HashMap<String, String>) friendlist.getItemAtPosition(position);
+                final String friendname = friendmap.get("FriendList");
                 Bundle bundle = getIntent().getExtras();
-                bundle.putString("friend",name);
+                bundle.putString("friend", friendname);
+                bundle.putString("name" , "ss" + "@" + connection.getServiceName());
                 Intent it = new Intent();
-                it.setClass(FriendListActivity.this,Chatroom.class);
+                it.setClass(FriendListActivity.this, ChatActivity.class);
                 it.putExtras(bundle);
                 startActivity(it);
 
             }
         });
-
-
     }
 
+    //獲取用戶頭像
+    public static Drawable getUserImage(String user){
+        ByteArrayInputStream bais = null;
+        XMPPConnection connection = XmppConnection.getConnection();
+        try{
+            VCard vcard = new VCard();
+            ProviderManager.getInstance().addIQProvider("vCard", "vcard-temp", new org.jivesoftware.smackx.provider.VCardProvider());
+            if (user.equals("") || user == null || user.trim().length() <= 0) {
+                return null;
+            }
+            vcard.load(connection,user);
+            if(vcard == null || vcard.getAvatar() == null)
+                return null;
+            bais = new ByteArrayInputStream(vcard.getAvatar());
+        }catch(Exception e){
+            e.printStackTrace();
+            return null;
+        }
+        return FormatTools.getInstance().InputStreamToDrawable(bais);
+    }
 
 
 }
