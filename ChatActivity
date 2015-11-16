@@ -23,19 +23,22 @@ import org.jivesoftware.smack.MessageListener;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.packet.Message;
-import org.w3c.dom.Text;
+
+
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+
+
 public class ChatActivity extends AppCompatActivity {
-    private Text text_chat,text_title;
+    private TextView text_chat,text_title;
     private EditText edit_chat;
     private ImageView img_send;
     private Drawable img_userDrawable,img_friendDrawable;
     private XMPPConnection connection = XmppConnection.getConnection();
-    private String str_text,name,password,friend,sendMsg;
+    private String str_text,name,password,friend,sendMsg ,friendname;
     private ChatHandler handler;
     private SimpleDateFormat sf = new SimpleDateFormat("HH:mm");
 
@@ -54,22 +57,24 @@ public class ChatActivity extends AppCompatActivity {
         img_send = (ImageView) findViewById(R.id.img_send);
         edit_chat = (EditText) findViewById(R.id.edit_chat);
         listview_chat = (ListView) findViewById(R.id.listview_chat);
-        //text_title = (TextView) findViewById(R.id.text_title);
+        text_title = (TextView) findViewById(R.id.text_title);
 
         myAdapter = new MyAdapter(this, chatList, item_layout, from, to);
 
         //獲取Fragment傳來的值
-        name = getIntent().getStringExtra("name");
-        password = getIntent().getStringExtra("password");
-        friend = getIntent().getStringExtra("friend");
-        //text_title.setText(friend);
-        try {
+        //name = getIntent().getStringExtra("name");
+        //password = getIntent().getStringExtra("password");
+        Bundle bundle = this.getIntent().getExtras();
+        friend = bundle.getString("friend");
+        friendname = bundle.getString("name");
+        text_title.setText(friend);
+        /*try {
             connection.login(name, password);
         } catch (XMPPException e) {
             e.printStackTrace();
-        }
-        img_userDrawable = new FriendFragment().getUserImage(connection, name);
-        img_friendDrawable = new FriendFragment().getUserImage(connection, friend);
+        }*/
+        img_userDrawable = new FriendFragment().getUserImage (friendname,connection);
+        img_friendDrawable = new FriendFragment().getUserImage( friend,connection);
 
         img_send.setOnClickListener(new View.OnClickListener() {
 
@@ -77,7 +82,7 @@ public class ChatActivity extends AppCompatActivity {
             public void onClick(View arg0) {
                 sendMsg = edit_chat.getText().toString();
 
-                Chat chat = connection.getChatManager().createChat(friend+"@"+"eric-pc", null);
+                Chat chat = connection.getChatManager().createChat(friend+"@"+ connection.getServiceName(), null);
                 try {
                     chat.sendMessage(sendMsg);
                 } catch (XMPPException e) {
@@ -135,7 +140,7 @@ public class ChatActivity extends AppCompatActivity {
             String ChatHandler = b.getString("msg");
             String friend = b.getString("friend");
 
-            //text_title.setText(friend);
+            text_title.setText(friend);
             addChatToListview(1, ChatHandler);
 
             //将ListView设置为置底显示，自动刷新UI，使得消息及时显示
@@ -148,7 +153,7 @@ public class ChatActivity extends AppCompatActivity {
     public void addChatToListview(int who,String chat){
         HashMap<String,Object> map = new HashMap<String,Object>();
         map.put("who", who);
-        map.put("img", who==0?R.drawable.boom:R.drawable.images);
+        map.put("img", who==0?R.drawable.mymessage:R.drawable.friendmessage);
         map.put("chat", chat);
         chatList.add(map);
     }
