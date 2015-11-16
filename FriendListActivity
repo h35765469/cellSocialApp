@@ -1,0 +1,75 @@
+package com.example.user.chatsystem1;
+
+import android.content.Intent;
+import android.support.v7.app.AppCompatActivity;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ListView;
+import android.widget.SimpleAdapter;
+
+import org.jivesoftware.smack.Roster;
+import org.jivesoftware.smack.RosterEntry;
+import org.jivesoftware.smack.RosterGroup;
+import org.jivesoftware.smack.XMPPConnection;
+import org.jivesoftware.smackx.packet.VCard;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+
+public class FriendListActivity extends AppCompatActivity {
+    ListView friendlist;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_friend_list);
+        friendlist = (ListView)findViewById(R.id.friendlist1);
+        friendlist();
+    }
+
+    //好友列表(可用)
+    public void friendlist(){
+        XMPPConnection connection = XmppConnection.getConnection();
+        HashMap<String,String>friends = null;
+        List<HashMap<String,String>>Flist = new ArrayList<HashMap<String, String>>();
+        Roster roster = connection.getRoster();
+        Iterator<RosterEntry> iter = roster.getEntries().iterator();
+        while(iter.hasNext()){
+            RosterEntry entry = iter.next();
+            friends = new HashMap<String,String>();
+            friends.put("FriendList", entry.getUser());
+            Flist.add(friends);
+        }
+
+        SimpleAdapter adapter = new SimpleAdapter(this,Flist,R.layout.friendlist,new String[]{"FriendList"},
+                new int[]{R.id.title}
+                );
+        friendlist.setAdapter(adapter);
+        friendlist.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                HashMap<String,String>friendmap = (HashMap<String,String>)friendlist.getItemAtPosition(position);
+                final String name = friendmap.get("FriendList");
+                Bundle bundle = getIntent().getExtras();
+                bundle.putString("friend",name);
+                Intent it = new Intent();
+                it.setClass(FriendListActivity.this,Chatroom.class);
+                it.putExtras(bundle);
+                startActivity(it);
+
+            }
+        });
+
+
+    }
+
+
+
+}
+
+
