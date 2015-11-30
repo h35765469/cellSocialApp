@@ -1,6 +1,8 @@
 package com.example.user.chatsystem1.fragment;
 
+import android.content.ContentValues;
 import android.content.Context;
+import android.database.sqlite.SQLiteDatabase;
 import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
@@ -14,6 +16,7 @@ import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import com.example.user.chatsystem1.ChatHistory.SQLite;
 import com.example.user.chatsystem1.R;
 import com.example.user.chatsystem1.XmppConnection;
 
@@ -38,7 +41,7 @@ public class ChatActivity extends AppCompatActivity {
     private ImageView img_send;
     private Drawable img_userDrawable,img_friendDrawable;
     private XMPPConnection connection = XmppConnection.getConnection();
-    private String str_text,name,password,friend,sendMsg ,friendname;
+    private String str_text,name,password,friend,sendMsg ,UserID;
     private ChatHandler handler;
     private SimpleDateFormat sf = new SimpleDateFormat("HH:mm");
 
@@ -48,6 +51,7 @@ public class ChatActivity extends AppCompatActivity {
     int[] item_layout = {R.layout.my_message_item,R.layout.friend_message_item};
     private ListView listview_chat;
     private MyAdapter myAdapter;
+    SQLite sqlite = null;
 
 
     @Override
@@ -65,16 +69,16 @@ public class ChatActivity extends AppCompatActivity {
         //name = getIntent().getStringExtra("name");
         //password = getIntent().getStringExtra("password");
         Bundle bundle = this.getIntent().getExtras();
-        friend = bundle.getString("friend");
-        friendname = bundle.getString("name");
+        friend = bundle.getString("friendname");
+        UserID = bundle.getString("UserID");
         text_title.setText(friend);
         /*try {
             connection.login(name, password);
         } catch (XMPPException e) {
             e.printStackTrace();
         }*/
-        img_userDrawable = new FriendFragment().getUserImage (friendname,connection);
-        img_friendDrawable = new FriendFragment().getUserImage( friend,connection);
+        //img_userDrawable = new FriendFragment().getUserImage (,connection);
+        //img_friendDrawable = new FriendFragment().getUserImage( friend,connection);
 
         img_send.setOnClickListener(new View.OnClickListener() {
 
@@ -82,7 +86,7 @@ public class ChatActivity extends AppCompatActivity {
             public void onClick(View arg0) {
                 sendMsg = edit_chat.getText().toString();
 
-                Chat chat = connection.getChatManager().createChat(friend+"@"+ connection.getServiceName(), null);
+                Chat chat = connection.getChatManager().createChat(UserID, null);
                 try {
                     chat.sendMessage(sendMsg);
                 } catch (XMPPException e) {
@@ -218,4 +222,15 @@ public class ChatActivity extends AppCompatActivity {
         }
 
     }
+
+    //上傳聊天紀錄到sqlite
+    public void adddata(int ID , String FromName , String ToName){
+        SQLiteDatabase db = sqlite.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("ID",ID);
+        values.put("FromName",FromName);
+        values.put("ToName" , ToName);
+        db.insert("ChatMessage",null,values);
+    }
+
 }
