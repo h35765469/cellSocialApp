@@ -41,7 +41,7 @@ public class ChatActivity extends AppCompatActivity {
     private ImageView img_send;
     private Drawable img_userDrawable,img_friendDrawable;
     private XMPPConnection connection = XmppConnection.getConnection();
-    private String str_text,name,password,friend,sendMsg ,UserID;
+    private String friend,sendMsg ,UserID , My;
     private ChatHandler handler;
     private SimpleDateFormat sf = new SimpleDateFormat("HH:mm");
 
@@ -51,7 +51,11 @@ public class ChatActivity extends AppCompatActivity {
     int[] item_layout = {R.layout.my_message_item,R.layout.friend_message_item};
     private ListView listview_chat;
     private MyAdapter myAdapter;
+
+    private final String DATABASE_NAME = "Mydb";
     SQLite sqlite = null;
+    int messagecount = 0;
+
 
 
     @Override
@@ -65,18 +69,13 @@ public class ChatActivity extends AppCompatActivity {
 
         myAdapter = new MyAdapter(this, chatList, item_layout, from, to);
 
-        //獲取Fragment傳來的值
-        //name = getIntent().getStringExtra("name");
-        //password = getIntent().getStringExtra("password");
         Bundle bundle = this.getIntent().getExtras();
         friend = bundle.getString("friendname");
         UserID = bundle.getString("UserID");
+        My = bundle.getString("Username");
         text_title.setText(friend);
-        /*try {
-            connection.login(name, password);
-        } catch (XMPPException e) {
-            e.printStackTrace();
-        }*/
+
+        sqlite = new SQLite(this,DATABASE_NAME,null,3);
         //img_userDrawable = new FriendFragment().getUserImage (,connection);
         //img_friendDrawable = new FriendFragment().getUserImage( friend,connection);
 
@@ -99,7 +98,9 @@ public class ChatActivity extends AppCompatActivity {
 
                 //将ListView设置为置底显示，自动刷新UI，使得消息及时显示
                 listview_chat.setAdapter(myAdapter);
-                listview_chat.setSelection(myAdapter.getCount()-1);
+                listview_chat.setSelection(myAdapter.getCount() - 1);
+                adddata(messagecount, My , friend, sendMsg);
+                messagecount++;
             }
         });
 
@@ -149,8 +150,9 @@ public class ChatActivity extends AppCompatActivity {
 
             //将ListView设置为置底显示，自动刷新UI，使得消息及时显示
             listview_chat.setAdapter(myAdapter);
-            listview_chat.setSelection(myAdapter.getCount()-1);
-
+            listview_chat.setSelection(myAdapter.getCount() - 1);
+            adddata(messagecount, friend, My , ChatHandler);
+            messagecount++;
         }
     }
 
@@ -224,12 +226,13 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     //上傳聊天紀錄到sqlite
-    public void adddata(int ID , String FromName , String ToName){
+    public void adddata(int ID ,String FromName , String ToName , String ChatHistory){
         SQLiteDatabase db = sqlite.getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put("ID",ID);
         values.put("FromName",FromName);
         values.put("ToName" , ToName);
+        values.put("ChatHistory",ChatHistory);
         db.insert("ChatMessage",null,values);
     }
 
