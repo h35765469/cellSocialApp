@@ -2,6 +2,7 @@ package com.example.user.chatsystem1.fragment;
 
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
 import android.database.sqlite.SQLiteDatabase;
 import android.graphics.drawable.Drawable;
 import android.os.Handler;
@@ -26,7 +27,10 @@ import org.jivesoftware.smack.MessageListener;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.packet.Message;
-
+import org.jivesoftware.smack.packet.Presence;
+import org.jivesoftware.smackx.filetransfer.FileTransfer;
+import org.jivesoftware.smackx.filetransfer.FileTransferManager;
+import org.jivesoftware.smackx.filetransfer.OutgoingFileTransfer;
 
 
 import java.text.SimpleDateFormat;
@@ -38,7 +42,7 @@ import java.util.HashMap;
 public class ChatActivity extends AppCompatActivity {
     private TextView text_chat,text_title;
     private EditText edit_chat;
-    private ImageView img_send;
+    private ImageView img_send,img_sendfile;
     private Drawable img_userDrawable,img_friendDrawable;
     private XMPPConnection connection = XmppConnection.getConnection();
     private String friend,sendMsg ,UserID , My;
@@ -56,6 +60,9 @@ public class ChatActivity extends AppCompatActivity {
     SQLite sqlite = null;
     int messagecount = 0;
 
+    private final String IMAGE_TYPE = "image/*";//獲取預設相簿圖片使用
+    private final int IMAGE_CODE = 0;//獲取預設相簿圖片使用
+
 
 
     @Override
@@ -63,6 +70,7 @@ public class ChatActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
         img_send = (ImageView) findViewById(R.id.img_send);
+        img_sendfile = (ImageView)findViewById(R.id.img_sendfile);
         edit_chat = (EditText) findViewById(R.id.edit_chat);
         listview_chat = (ListView) findViewById(R.id.listview_chat);
         text_title = (TextView) findViewById(R.id.text_title);
@@ -79,6 +87,34 @@ public class ChatActivity extends AppCompatActivity {
         //img_userDrawable = new FriendFragment().getUserImage (,connection);
         //img_friendDrawable = new FriendFragment().getUserImage( friend,connection);
 
+        final Presence pre = connection.getRoster().getPresence(friend);
+
+
+        //傳送檔案的按鈕
+        img_sendfile.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(pre.getType()!= Presence.Type.unavailable){
+                    //創建文件傳輸管理器
+                    FileTransferManager manager = new FileTransferManager(connection);
+                    //創建輸出的文件
+                    OutgoingFileTransfer transfer = manager.createOutgoingFileTransfer(pre.getFrom());
+
+                    //發送文件
+                    //transfer.sendFile();
+                    while(!transfer.isDone()){
+                        if(transfer.getStatus() == FileTransfer.Status.in_progress){
+                            //可以調用transfer.getProgress();獲得傳輸速度
+                            System.out.println(transfer.getStatus());
+                            System.out.println(transfer.getProgress());
+                            System.out.println(transfer.isDone());
+                        }
+                    }
+                }
+            }
+        });
+
+        //傳送訊息的按鈕
         img_send.setOnClickListener(new View.OnClickListener() {
 
             @Override
@@ -234,6 +270,13 @@ public class ChatActivity extends AppCompatActivity {
         values.put("ToName" , ToName);
         values.put("ChatHistory",ChatHistory);
         db.insert("ChatMessage",null,values);
+    }
+
+    //點選預設相簿的圖片
+    private void setImage(){
+        Intent getAlbum = new Intent(Intent.ACTION_GET_CONTENT);
+        getAlbum.setType(IMAGE_TYPE);
+        startActivityForResult(getAlbum, IMAGE_CODE);
     }
 
 }
