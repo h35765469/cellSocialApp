@@ -4,6 +4,8 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.database.sqlite.SQLiteDatabase;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
@@ -19,6 +21,7 @@ import android.widget.TextView;
 
 import com.example.user.chatsystem1.ChatHistory.SQLite;
 import com.example.user.chatsystem1.R;
+import com.example.user.chatsystem1.SendFileType.FileChooser;
 import com.example.user.chatsystem1.XmppConnection;
 
 import org.jivesoftware.smack.Chat;
@@ -31,8 +34,10 @@ import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smackx.filetransfer.FileTransfer;
 import org.jivesoftware.smackx.filetransfer.FileTransferManager;
 import org.jivesoftware.smackx.filetransfer.OutgoingFileTransfer;
+import org.jivesoftware.smackx.packet.StreamInitiation;
 
 
+import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -60,8 +65,10 @@ public class ChatActivity extends AppCompatActivity {
     SQLite sqlite = null;
     int messagecount = 0;
 
-    private final String IMAGE_TYPE = "image/*";//獲取預設相簿圖片使用
-    private final int IMAGE_CODE = 0;//獲取預設相簿圖片使用
+    private File[] filearray;
+    FileChooser fileChooser;
+    Bitmap bitmap;//將獲取檔案轉換為Bitmap
+
 
 
 
@@ -88,6 +95,10 @@ public class ChatActivity extends AppCompatActivity {
         //img_friendDrawable = new FriendFragment().getUserImage( friend,connection);
 
         final Presence pre = connection.getRoster().getPresence(friend);
+        fileChooser = new FileChooser(this);//創建檔案選擇器的物件
+
+
+
 
 
         //傳送檔案的按鈕
@@ -99,9 +110,13 @@ public class ChatActivity extends AppCompatActivity {
                     FileTransferManager manager = new FileTransferManager(connection);
                     //創建輸出的文件
                     OutgoingFileTransfer transfer = manager.createOutgoingFileTransfer(pre.getFrom());
-
+                    fileChooser.showFileChooser();
                     //發送文件
-                    //transfer.sendFile();
+                    try {
+                        transfer.sendFile(filearray[0], "new");
+                    }catch(XMPPException e){
+                        e.printStackTrace();
+                    }
                     while(!transfer.isDone()){
                         if(transfer.getStatus() == FileTransfer.Status.in_progress){
                             //可以調用transfer.getProgress();獲得傳輸速度
@@ -268,15 +283,17 @@ public class ChatActivity extends AppCompatActivity {
         values.put("ID",ID);
         values.put("FromName",FromName);
         values.put("ToName" , ToName);
-        values.put("ChatHistory",ChatHistory);
-        db.insert("ChatMessage",null,values);
+        values.put("ChatHistory", ChatHistory);
+        db.insert("ChatMessage", null, values);
     }
 
-    //點選預設相簿的圖片
-    private void setImage(){
-        Intent getAlbum = new Intent(Intent.ACTION_GET_CONTENT);
-        getAlbum.setType(IMAGE_TYPE);
-        startActivityForResult(getAlbum, IMAGE_CODE);
+    @Override
+    protected void onActivityResult(int requestCode , int resultCode,Intent data){
+        if(fileChooser.onActivityResult(requestCode,resultCode,data)){
+            filearray = fileChooser.getChosenFiles();
+        }else{
+            System.out.println("error");
+        }
     }
 
 }
