@@ -7,9 +7,11 @@ import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.Drawable;
+import android.os.Environment;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -70,7 +72,8 @@ public class ChatActivity extends AppCompatActivity {
 
     private File[] filearray;//傳送文件要用
     FileChooser fileChooser;//呼叫選擇器的物件
-
+    Presence pre;
+    FileTransferManager transfer_getfile;
 
 
 
@@ -101,12 +104,12 @@ public class ChatActivity extends AppCompatActivity {
         //img_friendDrawable = new FriendFragment().getUserImage( friend,connection);
 
         System.out.println(UserID);
-        final Presence pre = connection.getRoster().getPresence(UserID);
+        pre = connection.getRoster().getPresence(UserID);
         fileChooser = new FileChooser(this);//創建檔案選擇器的物件
         System.out.println(pre);
 
-        FileTransferManager transfer_getfile = new FileTransferManager(connection);
-        transfer_getfile.addFileTransferListener(new RecFileTransferListener());
+        transfer_getfile = new FileTransferManager(connection);
+        getfile();
 
 
 
@@ -115,27 +118,9 @@ public class ChatActivity extends AppCompatActivity {
         img_sendfile.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (pre.getType() != Presence.Type.unavailable) {
-                    //創建文件傳輸管理器
-                    FileTransferManager manager = new FileTransferManager(connection);
-                    //創建輸出的文件
-                    OutgoingFileTransfer transfer = manager.createOutgoingFileTransfer(pre.getFrom());
-                    fileChooser.showFileChooser();
-                    //發送文件
-                    try {
-                        transfer.sendFile(filearray[0].getAbsoluteFile(), "new");
-                    } catch (XMPPException e) {
-                        e.printStackTrace();
-                    }
-                    while (!transfer.isDone()) {
-                        if (transfer.getStatus() == FileTransfer.Status.in_progress) {
-                            //可以調用transfer.getProgress();獲得傳輸速度
-                            System.out.println(transfer.getStatus());
-                            System.out.println(transfer.getProgress());
-                            System.out.println(transfer.isDone());
-                        }
-                    }
-                }
+                System.out.println(pre.getType());
+                System.out.println(pre.getFrom());
+                fileChooser.showFileChooser();
             }
         });
 
@@ -301,32 +286,46 @@ public class ChatActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode , int resultCode,Intent data){
         if(fileChooser.onActivityResult(requestCode,resultCode,data)){
             filearray = fileChooser.getChosenFiles();
+            if (pre.getType() != Presence.Type.unavailable) {
+                //創建文件傳輸管理器
+                FileTransferManager manager = new FileTransferManager(connection);
+                //創建輸出的文件
+                OutgoingFileTransfer transfer = manager.createOutgoingFileTransfer(pre.getFrom());
+                //發送文件
+                try {
+                    transfer.sendFile(filearray[0],filearray[0].getName());
+                } catch (XMPPException e) {
+                    e.printStackTrace();
+                }
+                while (!transfer.isDone()) {
+                    if (transfer.getStatus() == FileTransfer.Status.in_progress) {
+                        //可以調用transfer.getProgress();獲得傳輸速度
+                        System.out.println(transfer.getStatus());
+                        System.out.println(transfer.getProgress());
+                        System.out.println(transfer.isDone());
+                    }
+                }
+            }
         }else{
             System.out.println("error");
         }
     }
 
     //接受文件
-    public class RecFileTransferListener implements FileTransferListener {
-        public String getFileType(String fileFullName){
-            if(fileFullName.contains(".")){
-                return "." + fileFullName.split("//.")[1];
-            }else{
-                return fileFullName;
-            }
-        }
+    public void getfile(){
+        transfer_getfile.addFileTransferListener(new FileTransferListener() {
+            @Override
+            public void fileTransferRequest(FileTransferRequest fileTransferRequest) {
+                try{
+                    //接收文件
+                    IncomingFileTransfer transfer = fileTransferRequest.accept();
 
-        @Override
-        public void fileTransferRequest(FileTransferRequest request){
-            System.out.println("接收文件開始");
-            final IncomingFileTransfer inTransfer = request.accept();
-            final String fileName = request.getFileName();
-            long length = request.getFileSize();
-            final String fromUser = request.getRequestor().split("/")[0];
-            System.out.println("文件大小" + length + " " + request.getRequestor());
-            System.out.println("" + request.getMimeType());
-           
-        }
+                    transfer.recieveFile(new File(Environment.getExternalStorageDirectory().getPath()));
+                }catch(Exception e){
+                    Log.e("RecFile Ex IN!", e.getMessage());
+                }
+            }
+        });
     }
 
 }
