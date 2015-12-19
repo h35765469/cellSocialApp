@@ -33,9 +33,11 @@ import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Presence;
+import org.jivesoftware.smackx.ServiceDiscoveryManager;
 import org.jivesoftware.smackx.filetransfer.FileTransfer;
 import org.jivesoftware.smackx.filetransfer.FileTransferListener;
 import org.jivesoftware.smackx.filetransfer.FileTransferManager;
+import org.jivesoftware.smackx.filetransfer.FileTransferNegotiator;
 import org.jivesoftware.smackx.filetransfer.FileTransferRequest;
 import org.jivesoftware.smackx.filetransfer.IncomingFileTransfer;
 import org.jivesoftware.smackx.filetransfer.OutgoingFileTransfer;
@@ -109,6 +111,7 @@ public class ChatActivity extends AppCompatActivity {
         System.out.println(pre);
 
         transfer_getfile = new FileTransferManager(connection);
+
         getfile();
 
 
@@ -286,26 +289,7 @@ public class ChatActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode , int resultCode,Intent data){
         if(fileChooser.onActivityResult(requestCode,resultCode,data)){
             filearray = fileChooser.getChosenFiles();
-            if (pre.getType() != Presence.Type.unavailable) {
-                //創建文件傳輸管理器
-                FileTransferManager manager = new FileTransferManager(connection);
-                //創建輸出的文件
-                OutgoingFileTransfer transfer = manager.createOutgoingFileTransfer(pre.getFrom());
-                //發送文件
-                try {
-                    transfer.sendFile(filearray[0],filearray[0].getName());
-                } catch (XMPPException e) {
-                    e.printStackTrace();
-                }
-                while (!transfer.isDone()) {
-                    if (transfer.getStatus() == FileTransfer.Status.in_progress) {
-                        //可以調用transfer.getProgress();獲得傳輸速度
-                        System.out.println(transfer.getStatus());
-                        System.out.println(transfer.getProgress());
-                        System.out.println(transfer.isDone());
-                    }
-                }
-            }
+            SendFile(filearray[0].getName(),filearray[0].getAbsolutePath());
         }else{
             System.out.println("error");
         }
@@ -313,7 +297,7 @@ public class ChatActivity extends AppCompatActivity {
 
     //接受文件
     public void getfile(){
-        transfer_getfile.addFileTransferListener(new FileTransferListener() {
+        /*transfer_getfile.addFileTransferListener(new FileTransferListener() {
             @Override
             public void fileTransferRequest(FileTransferRequest fileTransferRequest) {
                 try{
@@ -325,7 +309,121 @@ public class ChatActivity extends AppCompatActivity {
                     Log.e("RecFile Ex IN!", e.getMessage());
                 }
             }
-        });
+        });*/
+
+        Thread thread  = new Thread(){
+            public void run(){
+                ServiceDiscoveryManager sdm = ServiceDiscoveryManager.getInstanceFor(connection);
+                if (sdm == null) {
+                    sdm = new ServiceDiscoveryManager(connection);
+                }
+
+                sdm.addFeature("http://jabber.org/protocol/disco#info");
+                sdm.addFeature("jabber:iq:privacy");
+
+                // Create the file transfer manager
+                final FileTransferManager managerListner = new FileTransferManager(connection);
+
+                FileTransferNegotiator.setServiceEnabled(connection, true);
+                Log.i("File transfere manager", "created");
+                // Create the listener
+                managerListner.addFileTransferListener(new FileTransferListener(){
+                    public void fileTransferRequest(final FileTransferRequest request){
+                        Log.i("Recieve File",
+                                "new file transfere request  new file transfere request   new file transfere request");
+
+                        Log.i("file request",
+                                "from" + request.getRequestor());
+
+                        IncomingFileTransfer transfer = request.accept();
+
+                        Log.i("Recieve File  dialog", "accepted");
+                        try{
+                            transfer.recieveFile(new File("/sdcard/" + request.getFileName()));
+                            while (!transfer.isDone() || (transfer.getProgress() < 1)) {
+
+                                Thread.sleep(1000);
+                                Log.i("Recieve File dialog", "still receiving : "
+                                        + (transfer.getProgress()) + " status "
+                                        + transfer.getStatus());
+
+                                if (transfer.getStatus().equals(FileTransfer.Status.error)) {
+                                    // Log.i("Error file",
+                                    // transfer.getError().getMessage());
+                                    Log.i("Recieve File  dialog",
+                                            "cancelling still receiving : "
+                                                    + (transfer.getProgress())
+                                                    + " status "
+                                                    + transfer.getStatus());
+                                    transfer.cancel();
+
+                                    break;
+                                }
+
+                            }
+                        }catch(XMPPException e){
+                            e.printStackTrace();
+                        }catch(InterruptedException e){
+                            e.printStackTrace();
+                        }
+                    }
+                });
+            }
+        };
+        thread.start();
+    }
+
+    //發送文件
+    public void SendFile(final String Receiver,final String Directory){
+        Thread thread = new Thread(){
+            public void run(){
+                ServiceDiscoveryManager sdm = ServiceDiscoveryManager.getInstanceFor(connection);
+                if(sdm == null){
+                    sdm = new ServiceDiscoveryManager(connection);
+                }
+
+                sdm.addFeature("http://jabber.org/protocol/disco#info");
+                sdm.addFeature("jabber:iq:privacy");
+
+                // Create the file transfer manager
+                FileTransferManager manager = new FileTransferManager(
+                        connection);
+                FileTransferNegotiator.setServiceEnabled(connection, true);
+
+                // Create the outgoing file transfer
+                OutgoingFileTransfer transfer = manager
+                        .createOutgoingFileTransfer(pre.getFrom());
+                Log.i("transfere file", "outgoingfiletransfere is created");
+
+                try{
+                    OutgoingFileTransfer.setResponseTimeout(30000);
+                    transfer.sendFile(new File(Directory), Receiver);
+                    Log.i("transfere file", "sending file");
+
+                    while (!transfer.isDone()) {
+
+                        try {
+                            Thread.sleep(1000);
+                            Log.i("transfere file", "sending file status "
+                                    + transfer.getStatus() + "progress: "
+                                    + transfer.getProgress());
+                            if (transfer.getStatus() == FileTransfer.Status.error) {
+                                transfer.cancel();
+                                break;
+                            }
+                        } catch (InterruptedException e) {
+                            // TODO Auto-generated catch block
+                            e.printStackTrace();
+                        }
+                    }
+                }catch(XMPPException e){
+                    e.printStackTrace();
+                }
+
+                Log.i("transfere file", "sending file done");
+            }
+        };
+        thread.start();
     }
 
 }
