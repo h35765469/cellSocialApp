@@ -57,10 +57,6 @@ import java.util.Objects;
 public class SearchFriendActivity extends AppCompatActivity {
     EditText Search;
     Button SearchButton;
-    String queryResult;
-    TextView messageview;
-    String string = " ";
-    String string2 = " ";
     XMPPConnection connection;
     ListView Friendlist;
     Drawable imageicon;
@@ -96,12 +92,12 @@ public class SearchFriendActivity extends AppCompatActivity {
                     XMPPConnection connection = XmppConnection.getConnection();
                     UserSearchManager searchmanager = new UserSearchManager(connection);
                     Form searchform = null;
-                    searchform = searchmanager.getSearchForm("search.192.168.0.104");
+                    searchform = searchmanager.getSearchForm("search.114.24.128.32");
                     Form answerform = searchform.createAnswerForm();
                     answerform.setAnswer("Username"  , true);
                     answerform.setAnswer("search",userName);
                     ReportedData data = null;
-                    data = searchmanager.getSearchResults(answerform, "search.192.168.0.104");
+                    data = searchmanager.getSearchResults(answerform, "search.114.24.128.32");
                     if(data != null && data.getRows()!=null){
                         Iterator<ReportedData.Row> it = data.getRows();
                         ReportedData.Row row = null;
@@ -161,8 +157,8 @@ public class SearchFriendActivity extends AppCompatActivity {
                                         finish();
                                         Bundle bundle = getIntent().getExtras();
                                         Intent intent = new Intent();
-                                        intent.setClass(SearchFriendActivity.this, FriendListActivity.class);
                                         intent.putExtras(bundle);
+                                        intent.setClass(SearchFriendActivity.this, FriendListActivity.class);
                                         startActivity(intent);
                                     }
                                 })
