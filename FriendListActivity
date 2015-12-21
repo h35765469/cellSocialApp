@@ -2,11 +2,14 @@ package com.example.user.chatsystem1;
 
 import android.content.Intent;
 import android.graphics.drawable.Drawable;
+import android.media.Image;
+import android.provider.ContactsContract;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.SimpleAdapter;
@@ -31,24 +34,43 @@ import java.util.List;
 public class FriendListActivity extends AppCompatActivity {
     ListView friendlist;
     Drawable imageicon;
+    Drawable Profile_imageicon;
+    Button Back_button;
+    ImageView Profile_picture;
+    String my_profile;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_friend_list);
+        XMPPConnection connection = XmppConnection.getConnection();
         friendlist = (ListView)findViewById(R.id.friendlist1);
+        Back_button = (Button)findViewById(R.id.Back_button);
+        Profile_picture = (ImageView)findViewById(R.id.Profile_picture);
+        Bundle bundle = this.getIntent().getExtras();
+        my_profile = bundle.getString("Username") + "@" + connection.getServiceName();
+        Profile_imageicon = getUserImage(my_profile);
+        Profile_picture.setImageDrawable(Profile_imageicon);
+        Back_button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                finish();
+            }
+        });
         friendlist();
     }
 
     //好友列表(可用)
     public void friendlist(){
-        final XMPPConnection connection = XmppConnection.getConnection();
+        XMPPConnection connection = XmppConnection.getConnection();
         HashMap<String,Object>friends = null;
         List<HashMap<String,Object>>Flist = new ArrayList<HashMap<String, Object>>();
         Roster roster = connection.getRoster();
+        System.out.println("fuck" + roster.getEntries().size());
         Iterator<RosterEntry> iter = roster.getEntries().iterator();
         while(iter.hasNext()){
             RosterEntry entry = iter.next();
+            System.out.println("fuck as hole" + entry.getUser());
             friends = new HashMap<String,Object>();
             imageicon = getUserImage(entry.getUser());
             if(imageicon == null){
@@ -56,7 +78,8 @@ public class FriendListActivity extends AppCompatActivity {
             }else{
                 friends.put("ImageIcon",imageicon);
             }
-            friends.put("FriendList", entry.getUser());
+            String[] getUserSplit = entry.getUser().split("@");
+            friends.put("FriendList", getUserSplit[0]);
             Flist.add(friends);
         }
 
@@ -83,11 +106,12 @@ public class FriendListActivity extends AppCompatActivity {
         friendlist.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                XMPPConnection connection = XmppConnection.getConnection();
                 HashMap<String, String> friendmap = (HashMap<String, String>) friendlist.getItemAtPosition(position);
                 final String friendname = friendmap.get("FriendList");
                 Bundle bundle = getIntent().getExtras();
-                bundle.putString("friend", friendname);
-                bundle.putString("name" , "ss" + "@" + connection.getServiceName());
+                bundle.putString("friendname", friendname);
+                bundle.putString("UserID" , friendname + "@" + connection.getServiceName());
                 Intent it = new Intent();
                 it.setClass(FriendListActivity.this, ChatActivity.class);
                 it.putExtras(bundle);
@@ -98,7 +122,7 @@ public class FriendListActivity extends AppCompatActivity {
     }
 
     //獲取用戶頭像
-    public static Drawable getUserImage(String user){
+    public Drawable getUserImage(String user){
         ByteArrayInputStream bais = null;
         XMPPConnection connection = XmppConnection.getConnection();
         try{
