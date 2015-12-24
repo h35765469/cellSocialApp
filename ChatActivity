@@ -55,7 +55,7 @@ public class ChatActivity extends AppCompatActivity {
     private TextView text_chat,text_title;
     private EditText edit_chat;
     private ImageView img_send,img_sendfile;
-    private Drawable img_userDrawable,img_friendDrawable;
+    private Drawable img_userDrawable,img_friendDrawable,img_bombDrawable;
     private XMPPConnection connection = XmppConnection.getConnection();
     private String friend,sendMsg ,UserID , My;
     private ChatHandler handler;
@@ -105,12 +105,10 @@ public class ChatActivity extends AppCompatActivity {
         //img_userDrawable = new FriendFragment().getUserImage (,connection);
         //img_friendDrawable = new FriendFragment().getUserImage( friend,connection);
 
-        System.out.println(UserID);
         pre = connection.getRoster().getPresence(UserID);
         fileChooser = new FileChooser(this);//創建檔案選擇器的物件
-        System.out.println(pre);
-
         transfer_getfile = new FileTransferManager(connection);
+        img_bombDrawable = getResources().getDrawable(R.drawable.boom);
 
         getfile();
 
@@ -121,8 +119,6 @@ public class ChatActivity extends AppCompatActivity {
         img_sendfile.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                System.out.println(pre.getType());
-                System.out.println(pre.getFrom());
                 fileChooser.showFileChooser();
             }
         });
@@ -133,23 +129,26 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onClick(View arg0) {
                 sendMsg = edit_chat.getText().toString();
+                if(!sendMsg.equals("")){
 
-                Chat chat = connection.getChatManager().createChat(UserID, null);
-                try {
-                    chat.sendMessage(sendMsg);
-                } catch (XMPPException e) {
-                    e.printStackTrace();
+                    Chat chat = connection.getChatManager().createChat(UserID, null);
+                    try {
+                        chat.sendMessage(sendMsg);
+                    } catch (XMPPException e) {
+                        e.printStackTrace();
+                    }
+
+                    edit_chat.setText(null);
+
+                    addChatToListview(0, sendMsg ,0);
+
+                    //將ListView設置為置底顯示，自動刷新UI，使得消息即時顯示
+                    listview_chat.setAdapter(myAdapter);
+                    listview_chat.setSelection(myAdapter.getCount() - 1);
+                    //adddata(messagecount, My , friend, sendMsg);
+                    messagecount++;
                 }
 
-                edit_chat.setText(null);
-
-                addChatToListview(0, sendMsg);
-
-                //将ListView设置为置底显示，自动刷新UI，使得消息及时显示
-                listview_chat.setAdapter(myAdapter);
-                listview_chat.setSelection(myAdapter.getCount() - 1);
-                adddata(messagecount, My , friend, sendMsg);
-                messagecount++;
             }
         });
 
@@ -195,21 +194,31 @@ public class ChatActivity extends AppCompatActivity {
             String friend = b.getString("friend");
 
             text_title.setText(friend);
-            addChatToListview(1, ChatHandler);
+            addChatToListview(1, ChatHandler,0);
 
             //将ListView设置为置底显示，自动刷新UI，使得消息及时显示
             listview_chat.setAdapter(myAdapter);
             listview_chat.setSelection(myAdapter.getCount() - 1);
-            adddata(messagecount, friend, My , ChatHandler);
+            //
+            // adddata(messagecount, friend, My , ChatHandler);
             messagecount++;
         }
     }
 
-    public void addChatToListview(int who,String chat){
+    public void addChatToListview(int who,String chat,int mode){
         HashMap<String,Object> map = new HashMap<String,Object>();
         map.put("who", who);
         map.put("img", who==0?R.drawable.mymessage:R.drawable.friendmessage);
         map.put("chat", chat);
+        map.put("mode",mode);
+        chatList.add(map);
+    }
+
+    public void addFileToListview(int who,int mode){
+        HashMap<String,Object> map = new HashMap<String,Object>();
+        map.put("who", who);
+        map.put("img", who==0?R.drawable.mymessage:R.drawable.friendmessage);
+        map.put("mode",mode);
         chatList.add(map);
     }
 
@@ -254,21 +263,40 @@ public class ChatActivity extends AppCompatActivity {
         public View getView(int item, View view, ViewGroup parent) {
             //獲取當前who is call
             int who = (Integer)chatList.get(item).get("who");
-            String msg = (String)chatList.get(item).get("chat");
-            //根据who设置当前子项的布局和文本，0为自己发送的布局，1为好友发送的布局
-            if(who==0)
-            {
-                view=listcontainer.inflate(R.layout.my_message_item, null);
-                ((TextView)view.findViewById(R.id.text_me)).setText(msg);
-                ((ImageView)view.findViewById(R.id.img_me)).setImageDrawable(img_userDrawable);
-                return view;
-            }
-            else
-            {
-                view=listcontainer.inflate(R.layout.friend_message_item, null);
-                ((TextView)view.findViewById(R.id.text_friend)).setText(msg);
-                ((ImageView)view.findViewById(R.id.img_friend)).setImageDrawable(img_friendDrawable);
-                return view;
+            int mode = (Integer)chatList.get(item).get("mode");
+            if(mode == 0){
+                String msg = (String)chatList.get(item).get("chat");
+                //根據who设置當前的布局和文本，0為自己發送的布局，1為好友發送的布局
+                if(who==0)
+                {
+                    view=listcontainer.inflate(R.layout.my_message_item, null);
+                    ((TextView)view.findViewById(R.id.text_me)).setText(msg);
+                    ((ImageView)view.findViewById(R.id.img_me)).setImageDrawable(img_userDrawable);
+                    return view;
+                }
+                else
+                {
+                    view=listcontainer.inflate(R.layout.friend_message_item, null);
+                    ((TextView)view.findViewById(R.id.text_friend)).setText(msg);
+                    ((ImageView)view.findViewById(R.id.img_friend)).setImageDrawable(img_friendDrawable);
+                    return view;
+                }
+            }else{
+                //根據who设置當前的布局和文本，0為自己發送的布局，1為好友發送的布局
+                if(who==0)
+                {
+                    view=listcontainer.inflate(R.layout.my_bomb_item, null);
+                    ((ImageView)view.findViewById(R.id.img_bomb_me)).setImageDrawable(img_userDrawable);
+                    ((ImageView)view.findViewById(R.id.my_bombimage)).setImageDrawable(img_bombDrawable);
+                    return view;
+                }
+                else
+                {
+                    view=listcontainer.inflate(R.layout.friend_bomb_item, null);
+                    ((ImageView)view.findViewById(R.id.img_bomb_friend)).setImageDrawable(img_friendDrawable);
+                    ((ImageView)view.findViewById(R.id.friend_bombimage)).setImageDrawable(img_bombDrawable);
+                    return view;
+                }
             }
         }
 
@@ -290,6 +318,10 @@ public class ChatActivity extends AppCompatActivity {
         if(fileChooser.onActivityResult(requestCode,resultCode,data)){
             filearray = fileChooser.getChosenFiles();
             SendFile(filearray[0].getName(),filearray[0].getAbsolutePath());
+            addFileToListview(0,1);
+            listview_chat.setAdapter(myAdapter);
+            listview_chat.setSelection(myAdapter.getCount() - 1);
+            messagecount++;
         }else{
             System.out.println("error");
         }
@@ -297,20 +329,6 @@ public class ChatActivity extends AppCompatActivity {
 
     //接受文件
     public void getfile(){
-        /*transfer_getfile.addFileTransferListener(new FileTransferListener() {
-            @Override
-            public void fileTransferRequest(FileTransferRequest fileTransferRequest) {
-                try{
-                    //接收文件
-                    IncomingFileTransfer transfer = fileTransferRequest.accept();
-
-                    transfer.recieveFile(new File(Environment.getExternalStorageDirectory().getPath()));
-                }catch(Exception e){
-                    Log.e("RecFile Ex IN!", e.getMessage());
-                }
-            }
-        });*/
-
         Thread thread  = new Thread(){
             public void run(){
                 ServiceDiscoveryManager sdm = ServiceDiscoveryManager.getInstanceFor(connection);
@@ -328,6 +346,7 @@ public class ChatActivity extends AppCompatActivity {
                 Log.i("File transfere manager", "created");
                 // Create the listener
                 managerListner.addFileTransferListener(new FileTransferListener(){
+                    @Override
                     public void fileTransferRequest(final FileTransferRequest request){
                         Log.i("Recieve File",
                                 "new file transfere request  new file transfere request   new file transfere request");
@@ -340,30 +359,7 @@ public class ChatActivity extends AppCompatActivity {
                         Log.i("Recieve File  dialog", "accepted");
                         try{
                             transfer.recieveFile(new File("/sdcard/" + request.getFileName()));
-                            while (!transfer.isDone() || (transfer.getProgress() < 1)) {
-
-                                Thread.sleep(1000);
-                                Log.i("Recieve File dialog", "still receiving : "
-                                        + (transfer.getProgress()) + " status "
-                                        + transfer.getStatus());
-
-                                if (transfer.getStatus().equals(FileTransfer.Status.error)) {
-                                    // Log.i("Error file",
-                                    // transfer.getError().getMessage());
-                                    Log.i("Recieve File  dialog",
-                                            "cancelling still receiving : "
-                                                    + (transfer.getProgress())
-                                                    + " status "
-                                                    + transfer.getStatus());
-                                    transfer.cancel();
-
-                                    break;
-                                }
-
-                            }
                         }catch(XMPPException e){
-                            e.printStackTrace();
-                        }catch(InterruptedException e){
                             e.printStackTrace();
                         }
                     }
