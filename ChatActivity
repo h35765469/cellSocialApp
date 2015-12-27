@@ -3,6 +3,7 @@ package com.example.user.chatsystem1.fragment;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -15,11 +16,13 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.example.user.chatsystem1.ChatHistory.SQLite;
 import com.example.user.chatsystem1.R;
@@ -77,6 +80,8 @@ public class ChatActivity extends AppCompatActivity {
     Presence pre;
     FileTransferManager transfer_getfile;
 
+    private ArrayList<Integer> checkbomb = new ArrayList<Integer>();//檢查有哪幾行有傳送炸彈
+
 
 
 
@@ -110,9 +115,12 @@ public class ChatActivity extends AppCompatActivity {
         transfer_getfile = new FileTransferManager(connection);
         img_bombDrawable = getResources().getDrawable(R.drawable.boom);
 
-        getfile();
 
+        getfile();//獲取檔案
 
+        //設置炸彈的圖案可以被點擊
+        listview_chat.setAdapter(myAdapter);
+        listview_chat.setOnItemClickListener(BombOnItemClick);
 
 
         //傳送檔案的按鈕
@@ -145,12 +153,13 @@ public class ChatActivity extends AppCompatActivity {
                     //將ListView設置為置底顯示，自動刷新UI，使得消息即時顯示
                     listview_chat.setAdapter(myAdapter);
                     listview_chat.setSelection(myAdapter.getCount() - 1);
-                    //adddata(messagecount, My , friend, sendMsg);
+                    adddata(messagecount, My , friend, sendMsg);
                     messagecount++;
                 }
 
             }
         });
+
 
         //監聽用戶收到消息
         Thread thread = new Thread(new Runnable(){
@@ -182,7 +191,18 @@ public class ChatActivity extends AppCompatActivity {
         });
         thread.start();
         handler = new ChatHandler();
+
+        addChatHistoryToListview();//添加聊天紀錄
     }
+
+    //點擊炸彈圖片(在哪幾列)的觸動事件
+    AdapterView.OnItemClickListener BombOnItemClick  = new AdapterView.OnItemClickListener() {
+        @Override
+        public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+            myAdapter.setSelectItem(checkbomb);
+            myAdapter.notifyDataSetInvalidated();
+        }
+    };
 
     public class ChatHandler extends Handler {
         @Override
@@ -199,12 +219,12 @@ public class ChatActivity extends AppCompatActivity {
             //将ListView设置为置底显示，自动刷新UI，使得消息及时显示
             listview_chat.setAdapter(myAdapter);
             listview_chat.setSelection(myAdapter.getCount() - 1);
-            //
-            // adddata(messagecount, friend, My , ChatHandler);
+            adddata(messagecount, friend, My , ChatHandler);
             messagecount++;
         }
     }
 
+    //添加文字框框進去listview
     public void addChatToListview(int who,String chat,int mode){
         HashMap<String,Object> map = new HashMap<String,Object>();
         map.put("who", who);
@@ -214,12 +234,19 @@ public class ChatActivity extends AppCompatActivity {
         chatList.add(map);
     }
 
+    //添加檔案圖片進去listview
     public void addFileToListview(int who,int mode){
         HashMap<String,Object> map = new HashMap<String,Object>();
         map.put("who", who);
         map.put("img", who==0?R.drawable.mymessage:R.drawable.friendmessage);
         map.put("mode",mode);
         chatList.add(map);
+    }
+
+    //添加聊天紀錄到listview
+    public void addChatHistoryToListview(){
+        Cursor cursor = sqlite.query("select * from ChatMessage" , null);
+        listview_chat.setAdapter(new ChatHistory_baseAdapter(this,cursor));
     }
 
     public class MyAdapter extends BaseAdapter {
@@ -229,6 +256,7 @@ public class ChatActivity extends AppCompatActivity {
         String[] from;
         int[] to;
         LayoutInflater listcontainer;
+        ArrayList<Integer>BombSelectItem;
 
         public MyAdapter(Context context,
                          ArrayList<HashMap<String, Object>> chatList, int[] layout,
@@ -272,14 +300,12 @@ public class ChatActivity extends AppCompatActivity {
                     view=listcontainer.inflate(R.layout.my_message_item, null);
                     ((TextView)view.findViewById(R.id.text_me)).setText(msg);
                     ((ImageView)view.findViewById(R.id.img_me)).setImageDrawable(img_userDrawable);
-                    return view;
                 }
                 else
                 {
                     view=listcontainer.inflate(R.layout.friend_message_item, null);
                     ((TextView)view.findViewById(R.id.text_friend)).setText(msg);
                     ((ImageView)view.findViewById(R.id.img_friend)).setImageDrawable(img_friendDrawable);
-                    return view;
                 }
             }else{
                 //根據who设置當前的布局和文本，0為自己發送的布局，1為好友發送的布局
@@ -288,25 +314,78 @@ public class ChatActivity extends AppCompatActivity {
                     view=listcontainer.inflate(R.layout.my_bomb_item, null);
                     ((ImageView)view.findViewById(R.id.img_bomb_me)).setImageDrawable(img_userDrawable);
                     ((ImageView)view.findViewById(R.id.my_bombimage)).setImageDrawable(img_bombDrawable);
-                    return view;
                 }
                 else
                 {
                     view=listcontainer.inflate(R.layout.friend_bomb_item, null);
                     ((ImageView)view.findViewById(R.id.img_bomb_friend)).setImageDrawable(img_friendDrawable);
                     ((ImageView)view.findViewById(R.id.friend_bombimage)).setImageDrawable(img_bombDrawable);
-                    return view;
                 }
             }
+            return view;
+        }
+
+        public void setSelectItem(ArrayList<Integer>BombSelectItem ){
+            this.BombSelectItem = BombSelectItem;
         }
 
     }
+
+    //獲取聊天紀錄的adapter
+    public class ChatHistory_baseAdapter extends BaseAdapter{
+        private static final String TAG = "CursorAdapter";
+        private Context context;
+        private Cursor cursor;
+        private LayoutInflater inflater;
+        public ChatHistory_baseAdapter(Context context , Cursor cursor){
+            super();
+            this.context = context;
+            this.cursor = cursor;
+            inflater = LayoutInflater.from(context);
+        }
+
+        @Override
+        public int getCount(){
+            Log.d(TAG, "Count :" + cursor.getCount()); // TODO Auto-generated method stub
+            return cursor.getCount();
+        }
+
+        @Override
+        public Object getItem(int position){
+            Log.d(TAG, "Item :" + position); // TODO Auto-generated method stub return position
+            return position;
+        }
+
+        @Override
+        public long getItemId(int position){
+            Log.d(TAG, "ItemId :" + position);
+            return position;
+        }
+
+        @Override
+        public View getView(int position , View convertView,ViewGroup parent){
+            cursor.moveToPosition(position);
+            System.out.println(cursor.getString(1));
+            if(cursor.getString(1).equals(My)) {
+                convertView =inflater.inflate(R.layout.my_message_item, null);
+                ((TextView)convertView.findViewById(R.id.text_me)).setText(cursor.getString(3));
+                ((ImageView)convertView.findViewById(R.id.img_me)).setImageDrawable(img_userDrawable);
+            }else{
+                convertView = inflater.inflate(R.layout.friend_message_item, null);
+                ((TextView)convertView.findViewById(R.id.text_friend)).setText(cursor.getString(3));
+                ((ImageView)convertView.findViewById(R.id.img_friend)).setImageDrawable(img_friendDrawable);
+            }
+            return convertView;
+        }
+    }
+
+
 
     //上傳聊天紀錄到sqlite
     public void adddata(int ID ,String FromName , String ToName , String ChatHistory){
         SQLiteDatabase db = sqlite.getWritableDatabase();
         ContentValues values = new ContentValues();
-        values.put("ID",ID);
+        values.put("_id",ID);
         values.put("FromName",FromName);
         values.put("ToName" , ToName);
         values.put("ChatHistory", ChatHistory);
@@ -317,10 +396,11 @@ public class ChatActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode , int resultCode,Intent data){
         if(fileChooser.onActivityResult(requestCode,resultCode,data)){
             filearray = fileChooser.getChosenFiles();
-            SendFile(filearray[0].getName(),filearray[0].getAbsolutePath());
-            addFileToListview(0,1);
+            SendFile(filearray[0].getName(), filearray[0].getAbsolutePath());
+            addFileToListview(0, 1);
             listview_chat.setAdapter(myAdapter);
             listview_chat.setSelection(myAdapter.getCount() - 1);
+            checkbomb.add(myAdapter.getCount()-1);
             messagecount++;
         }else{
             System.out.println("error");
