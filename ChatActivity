@@ -73,7 +73,8 @@ public class ChatActivity extends AppCompatActivity {
 
     private final String DATABASE_NAME = "Mydb";
     SQLite sqlite = null;
-    int messagecount = 0;
+    int messagecount ;
+    boolean firstin ;// 第一次進入程式 , 進入獲取歷史紀錄
 
     private File[] filearray;//傳送文件要用
     FileChooser fileChooser;//呼叫選擇器的物件
@@ -98,7 +99,6 @@ public class ChatActivity extends AppCompatActivity {
         listview_chat = (ListView) findViewById(R.id.listview_chat);
         text_title = (TextView) findViewById(R.id.text_title);
 
-        myAdapter = new MyAdapter(this, chatList, item_layout, from, to);
 
         Bundle bundle = this.getIntent().getExtras();
         friend = bundle.getString("friendname");
@@ -106,9 +106,13 @@ public class ChatActivity extends AppCompatActivity {
         My = bundle.getString("Username");
         text_title.setText(friend);
 
+        messagecount = 0;
+
         sqlite = new SQLite(this,DATABASE_NAME,null,3);
         //img_userDrawable = new FriendFragment().getUserImage (,connection);
         //img_friendDrawable = new FriendFragment().getUserImage( friend,connection);
+        firstin = true;
+        ShowChatHistoryToListview();
 
         pre = connection.getRoster().getPresence(UserID);
         fileChooser = new FileChooser(this);//創建檔案選擇器的物件
@@ -119,14 +123,15 @@ public class ChatActivity extends AppCompatActivity {
         getfile();//獲取檔案
 
         //設置炸彈的圖案可以被點擊
-        listview_chat.setAdapter(myAdapter);
-        listview_chat.setOnItemClickListener(BombOnItemClick);
+        //listview_chat.setAdapter(myAdapter);
+        //listview_chat.setOnItemClickListener(BombOnItemClick);
 
 
         //傳送檔案的按鈕
         img_sendfile.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                firstin = false;
                 fileChooser.showFileChooser();
             }
         });
@@ -136,9 +141,10 @@ public class ChatActivity extends AppCompatActivity {
 
             @Override
             public void onClick(View arg0) {
+
                 sendMsg = edit_chat.getText().toString();
                 if(!sendMsg.equals("")){
-
+                    firstin = false;
                     Chat chat = connection.getChatManager().createChat(UserID, null);
                     try {
                         chat.sendMessage(sendMsg);
@@ -148,17 +154,17 @@ public class ChatActivity extends AppCompatActivity {
 
                     edit_chat.setText(null);
 
-                    addChatToListview(0, sendMsg ,0);
+                    addChatToListview(0, sendMsg, 0);
 
                     //將ListView設置為置底顯示，自動刷新UI，使得消息即時顯示
                     listview_chat.setAdapter(myAdapter);
                     listview_chat.setSelection(myAdapter.getCount() - 1);
                     adddata(messagecount, My , friend, sendMsg);
-                    messagecount++;
                 }
-
             }
         });
+
+
 
 
         //監聽用戶收到消息
@@ -176,7 +182,9 @@ public class ChatActivity extends AppCompatActivity {
                                 friend = msg.getFrom();
                                 friend = friend.substring(0,friend.indexOf("@"));
                                 android.os.Message m = new android.os.Message();
-                                if(msg.getBody()!=null){
+                                if(!msg.getBody().equals("")){
+                                    System.out.println("you are");
+                                    firstin = false;
                                     Bundle b = new Bundle();
                                     b.putString("msg",msg.getBody());
                                     b.putString("friend",friend);
@@ -192,7 +200,6 @@ public class ChatActivity extends AppCompatActivity {
         thread.start();
         handler = new ChatHandler();
 
-        addChatHistoryToListview();//添加聊天紀錄
     }
 
     //點擊炸彈圖片(在哪幾列)的觸動事件
@@ -214,13 +221,13 @@ public class ChatActivity extends AppCompatActivity {
             String friend = b.getString("friend");
 
             text_title.setText(friend);
-            addChatToListview(1, ChatHandler,0);
+            System.out.println("you");
+            addChatToListview(1, ChatHandler, 0);
 
             //将ListView设置为置底显示，自动刷新UI，使得消息及时显示
             listview_chat.setAdapter(myAdapter);
             listview_chat.setSelection(myAdapter.getCount() - 1);
-            adddata(messagecount, friend, My , ChatHandler);
-            messagecount++;
+            adddata(messagecount, friend, My, ChatHandler);
         }
     }
 
@@ -230,9 +237,10 @@ public class ChatActivity extends AppCompatActivity {
         map.put("who", who);
         map.put("img", who==0?R.drawable.mymessage:R.drawable.friendmessage);
         map.put("chat", chat);
-        map.put("mode",mode);
+        map.put("mode", mode);
         chatList.add(map);
-    }
+        messagecount++;
+}
 
     //添加檔案圖片進去listview
     public void addFileToListview(int who,int mode){
@@ -243,10 +251,12 @@ public class ChatActivity extends AppCompatActivity {
         chatList.add(map);
     }
 
-    //添加聊天紀錄到listview
-    public void addChatHistoryToListview(){
+
+    //展現聊天紀錄到listview
+    public void ShowChatHistoryToListview(){
         Cursor cursor = sqlite.query("select * from ChatMessage" , null);
-        listview_chat.setAdapter(new ChatHistory_baseAdapter(this,cursor));
+        myAdapter = new MyAdapter(this, chatList, item_layout, from, to,cursor);
+        listview_chat.setAdapter(myAdapter);
     }
 
     public class MyAdapter extends BaseAdapter {
@@ -257,10 +267,11 @@ public class ChatActivity extends AppCompatActivity {
         int[] to;
         LayoutInflater listcontainer;
         ArrayList<Integer>BombSelectItem;
+        Cursor cursor;
 
         public MyAdapter(Context context,
                          ArrayList<HashMap<String, Object>> chatList, int[] layout,
-                         String[] from, int[] to){
+                         String[] from, int[] to,Cursor cursor){
 
             super();
             this.context = context;
@@ -269,16 +280,23 @@ public class ChatActivity extends AppCompatActivity {
             this.layout = layout;
             this.from = from;
             this.to = to;
+            this.cursor = cursor;
         }
 
         @Override
         public int getCount() {
-            return chatList.size();
+               if(firstin){
+                    System.out.println(cursor.getCount());
+                   return cursor.getCount();
+               }
+               else{
+                   return  chatList.size();
+               }
         }
 
         @Override
         public Object getItem(int arg0) {
-            return null;
+            return arg0;
         }
 
         @Override
@@ -289,40 +307,62 @@ public class ChatActivity extends AppCompatActivity {
 
         @Override
         public View getView(int item, View view, ViewGroup parent) {
-            //獲取當前who is call
-            int who = (Integer)chatList.get(item).get("who");
-            int mode = (Integer)chatList.get(item).get("mode");
-            if(mode == 0){
-                String msg = (String)chatList.get(item).get("chat");
-                //根據who设置當前的布局和文本，0為自己發送的布局，1為好友發送的布局
-                if(who==0)
-                {
-                    view=listcontainer.inflate(R.layout.my_message_item, null);
-                    ((TextView)view.findViewById(R.id.text_me)).setText(msg);
+            if(firstin){
+                cursor.moveToPosition(messagecount);
+                if(cursor.getString(1).equals(My)) {
+                    System.out.println(cursor.getString(3));
+                    addChatToListview(0, cursor.getString(3), 0);
+                    view =listcontainer.inflate(R.layout.my_message_item, null);
+                    ((TextView)view.findViewById(R.id.text_me)).setText(cursor.getString(3));
                     ((ImageView)view.findViewById(R.id.img_me)).setImageDrawable(img_userDrawable);
-                }
-                else
-                {
-                    view=listcontainer.inflate(R.layout.friend_message_item, null);
-                    ((TextView)view.findViewById(R.id.text_friend)).setText(msg);
+                }else{
+                    System.out.println(cursor.getString(3));
+                    addChatToListview(1, cursor.getString(3),0);
+                    view = listcontainer.inflate(R.layout.friend_message_item, null);
+                    ((TextView)view.findViewById(R.id.text_friend)).setText(cursor.getString(3));
                     ((ImageView)view.findViewById(R.id.img_friend)).setImageDrawable(img_friendDrawable);
                 }
+                if(messagecount >= cursor.getCount()){
+                    firstin = false;
+                }
+                return  view;
             }else{
-                //根據who设置當前的布局和文本，0為自己發送的布局，1為好友發送的布局
-                if(who==0)
-                {
-                    view=listcontainer.inflate(R.layout.my_bomb_item, null);
-                    ((ImageView)view.findViewById(R.id.img_bomb_me)).setImageDrawable(img_userDrawable);
-                    ((ImageView)view.findViewById(R.id.my_bombimage)).setImageDrawable(img_bombDrawable);
+                //獲取當前who is call
+                int who = (Integer)chatList.get(item).get("who");
+                int mode = (Integer)chatList.get(item).get("mode");
+                if(mode == 0){
+                    String msg = (String)chatList.get(item).get("chat");
+                    //根據who设置當前的布局和文本，0為自己發送的布局，1為好友發送的布局
+                    if(who==0)
+                    {
+                        view=listcontainer.inflate(R.layout.my_message_item, null);
+                        ((TextView)view.findViewById(R.id.text_me)).setText(msg);
+                        ((ImageView)view.findViewById(R.id.img_me)).setImageDrawable(img_userDrawable);
+                    }
+                    else
+                    {
+                        view=listcontainer.inflate(R.layout.friend_message_item, null);
+                        ((TextView)view.findViewById(R.id.text_friend)).setText(msg);
+                        ((ImageView)view.findViewById(R.id.img_friend)).setImageDrawable(img_friendDrawable);
+                    }
+                }else{
+                    //根據who设置當前的布局和文本，0為自己發送的布局，1為好友發送的布局
+                    if(who==0)
+                    {
+                        view=listcontainer.inflate(R.layout.my_bomb_item, null);
+                        ((ImageView)view.findViewById(R.id.img_bomb_me)).setImageDrawable(img_userDrawable);
+                        ((ImageView)view.findViewById(R.id.my_bombimage)).setImageDrawable(img_bombDrawable);
+                    }
+                    else
+                    {
+                        view=listcontainer.inflate(R.layout.friend_bomb_item, null);
+                        ((ImageView)view.findViewById(R.id.img_bomb_friend)).setImageDrawable(img_friendDrawable);
+                        ((ImageView)view.findViewById(R.id.friend_bombimage)).setImageDrawable(img_bombDrawable);
+                    }
                 }
-                else
-                {
-                    view=listcontainer.inflate(R.layout.friend_bomb_item, null);
-                    ((ImageView)view.findViewById(R.id.img_bomb_friend)).setImageDrawable(img_friendDrawable);
-                    ((ImageView)view.findViewById(R.id.friend_bombimage)).setImageDrawable(img_bombDrawable);
-                }
+                return view;
             }
-            return view;
+
         }
 
         public void setSelectItem(ArrayList<Integer>BombSelectItem ){
@@ -330,56 +370,6 @@ public class ChatActivity extends AppCompatActivity {
         }
 
     }
-
-    //獲取聊天紀錄的adapter
-    public class ChatHistory_baseAdapter extends BaseAdapter{
-        private static final String TAG = "CursorAdapter";
-        private Context context;
-        private Cursor cursor;
-        private LayoutInflater inflater;
-        public ChatHistory_baseAdapter(Context context , Cursor cursor){
-            super();
-            this.context = context;
-            this.cursor = cursor;
-            inflater = LayoutInflater.from(context);
-        }
-
-        @Override
-        public int getCount(){
-            Log.d(TAG, "Count :" + cursor.getCount()); // TODO Auto-generated method stub
-            return cursor.getCount();
-        }
-
-        @Override
-        public Object getItem(int position){
-            Log.d(TAG, "Item :" + position); // TODO Auto-generated method stub return position
-            return position;
-        }
-
-        @Override
-        public long getItemId(int position){
-            Log.d(TAG, "ItemId :" + position);
-            return position;
-        }
-
-        @Override
-        public View getView(int position , View convertView,ViewGroup parent){
-            cursor.moveToPosition(position);
-            System.out.println(cursor.getString(1));
-            if(cursor.getString(1).equals(My)) {
-                convertView =inflater.inflate(R.layout.my_message_item, null);
-                ((TextView)convertView.findViewById(R.id.text_me)).setText(cursor.getString(3));
-                ((ImageView)convertView.findViewById(R.id.img_me)).setImageDrawable(img_userDrawable);
-            }else{
-                convertView = inflater.inflate(R.layout.friend_message_item, null);
-                ((TextView)convertView.findViewById(R.id.text_friend)).setText(cursor.getString(3));
-                ((ImageView)convertView.findViewById(R.id.img_friend)).setImageDrawable(img_friendDrawable);
-            }
-            return convertView;
-        }
-    }
-
-
 
     //上傳聊天紀錄到sqlite
     public void adddata(int ID ,String FromName , String ToName , String ChatHistory){
