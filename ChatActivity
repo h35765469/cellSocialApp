@@ -148,7 +148,7 @@ public class ChatActivity extends AppCompatActivity {
             public void onClick(View v) {
                 firstin = false;
                 //fileChooser.showFileChooser();
-                sendMsg = edit_chat.getText().toString();
+                sendMsg = "*";
                 if(!sendMsg.equals("")){
                     firstin = false;
                     Chat chat = connection.getChatManager().createChat(UserID, null);
@@ -165,6 +165,7 @@ public class ChatActivity extends AppCompatActivity {
                     //將ListView設置為置底顯示，自動刷新UI，使得消息即時顯示
                     listview_chat.setAdapter(myAdapter);
                     listview_chat.setSelection(myAdapter.getCount() - 1);
+
                     adddata(messagecount, My , friend, sendMsg,1);
                 }
             }
@@ -193,7 +194,7 @@ public class ChatActivity extends AppCompatActivity {
                     //將ListView設置為置底顯示，自動刷新UI，使得消息即時顯示
                     listview_chat.setAdapter(myAdapter);
                     listview_chat.setSelection(myAdapter.getCount() - 1);
-                    adddata(messagecount, My , friend, sendMsg,0);
+                    adddata(messagecount, My, friend, sendMsg, 0);
                 }
             }
         });
@@ -241,15 +242,17 @@ public class ChatActivity extends AppCompatActivity {
         @Override
         public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
             myAdapter.notifyDataSetInvalidated();
+            cursor = sqlite.query("select * from " + "MessageTo" + friend , null);
             cursor.moveToPosition(position);
             switch(Integer.parseInt(cursor.getString(4))){
-                case 0 : Toast.makeText(ChatActivity.this,"this is 圖片", Toast.LENGTH_SHORT).show();
+                case 0 : Toast.makeText(ChatActivity.this,"this is 文字", Toast.LENGTH_SHORT).show();
                     break;
-                case 1 : Toast.makeText(ChatActivity.this,"this is 文字" , Toast.LENGTH_SHORT).show();
+                case 1 : Toast.makeText(ChatActivity.this,"this is 圖片" , Toast.LENGTH_SHORT).show();
                     break;
                 case 2 : Toast.makeText(ChatActivity.this,"this is 影片" , Toast.LENGTH_LONG).show();
                     break;
             }
+
             //Intent intent = new Intent(ChatActivity.this, VideoView_Activity.class);
 
             //intent.putExtra("videofilename", filearray[0].getAbsolutePath());
