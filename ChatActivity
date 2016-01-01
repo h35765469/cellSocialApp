@@ -10,6 +10,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.drawable.Drawable;
 import android.os.Environment;
 import android.os.Handler;
+import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -27,6 +28,7 @@ import android.widget.Toast;
 import com.example.user.chatsystem1.ChatHistory.SQLite;
 import com.example.user.chatsystem1.R;
 import com.example.user.chatsystem1.SendFileType.FileChooser;
+import com.example.user.chatsystem1.VideoInSDcard.VideoView_Activity;
 import com.example.user.chatsystem1.XmppConnection;
 
 import org.jivesoftware.smack.Chat;
@@ -57,7 +59,7 @@ import java.util.jar.JarFile;
 public class ChatActivity extends AppCompatActivity {
     private TextView text_chat,text_title;
     private EditText edit_chat;
-    private ImageView img_send,img_sendfile;
+    private ImageView img_send,img_sendfile,img_video;
     private Drawable img_userDrawable,img_friendDrawable,img_bombDrawable;
     private XMPPConnection connection = XmppConnection.getConnection();
     private String friend,sendMsg ,UserID , My;
@@ -75,6 +77,7 @@ public class ChatActivity extends AppCompatActivity {
     SQLite sqlite = null;
     int messagecount ;
     boolean firstin ;// 第一次進入程式 , 進入獲取歷史紀錄
+    Cursor cursor;
 
     private File[] filearray;//傳送文件要用
     FileChooser fileChooser;//呼叫選擇器的物件
@@ -95,6 +98,8 @@ public class ChatActivity extends AppCompatActivity {
         setContentView(R.layout.activity_chat);
         img_send = (ImageView) findViewById(R.id.img_send);
         img_sendfile = (ImageView)findViewById(R.id.img_sendfile);
+        img_video = (ImageView)findViewById(R.id.img_video);
+
         edit_chat = (EditText) findViewById(R.id.edit_chat);
         listview_chat = (ListView) findViewById(R.id.listview_chat);
         text_title = (TextView) findViewById(R.id.text_title);
@@ -108,11 +113,21 @@ public class ChatActivity extends AppCompatActivity {
 
         messagecount = 0;
 
-        sqlite = new SQLite(this,DATABASE_NAME,null,3);
+        sqlite = new SQLite(this,DATABASE_NAME,null,3,"MessageTo" + friend);
         //img_userDrawable = new FriendFragment().getUserImage (,connection);
         //img_friendDrawable = new FriendFragment().getUserImage( friend,connection);
-        firstin = true;
-        ShowChatHistoryToListview();
+
+        //判斷表是否存在
+        if(TableIsExist("MessageTo" + friend)){
+            firstin = true;
+            //展現聊天紀錄
+            cursor = sqlite.query("select * from " + "MessageTo" + friend , null);
+            ShowChatHistoryToListview();
+        }else{
+            firstin = false;
+            CreateChatHistoryTable("MessageTo" + friend);
+            cursor = sqlite.query("select * from " + "MessageTo" + friend , null);
+        }
 
         pre = connection.getRoster().getPresence(UserID);
         fileChooser = new FileChooser(this);//創建檔案選擇器的物件
@@ -122,9 +137,9 @@ public class ChatActivity extends AppCompatActivity {
 
         getfile();//獲取檔案
 
-        //設置炸彈的圖案可以被點擊
-        //listview_chat.setAdapter(myAdapter);
-        //listview_chat.setOnItemClickListener(BombOnItemClick);
+        //設置圖案可以被點擊
+        listview_chat.setAdapter(myAdapter);
+        listview_chat.setOnItemClickListener(MediaOnItemClick);
 
 
         //傳送檔案的按鈕
@@ -132,7 +147,26 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 firstin = false;
-                fileChooser.showFileChooser();
+                //fileChooser.showFileChooser();
+                sendMsg = edit_chat.getText().toString();
+                if(!sendMsg.equals("")){
+                    firstin = false;
+                    Chat chat = connection.getChatManager().createChat(UserID, null);
+                    try {
+                        chat.sendMessage(sendMsg);
+                    } catch (XMPPException e) {
+                        e.printStackTrace();
+                    }
+
+                    edit_chat.setText(null);
+
+                    addChatToListview(0, sendMsg, 0);
+
+                    //將ListView設置為置底顯示，自動刷新UI，使得消息即時顯示
+                    listview_chat.setAdapter(myAdapter);
+                    listview_chat.setSelection(myAdapter.getCount() - 1);
+                    adddata(messagecount, My , friend, sendMsg,1);
+                }
             }
         });
 
@@ -159,7 +193,7 @@ public class ChatActivity extends AppCompatActivity {
                     //將ListView設置為置底顯示，自動刷新UI，使得消息即時顯示
                     listview_chat.setAdapter(myAdapter);
                     listview_chat.setSelection(myAdapter.getCount() - 1);
-                    adddata(messagecount, My , friend, sendMsg);
+                    adddata(messagecount, My , friend, sendMsg,0);
                 }
             }
         });
@@ -202,12 +236,24 @@ public class ChatActivity extends AppCompatActivity {
 
     }
 
-    //點擊炸彈圖片(在哪幾列)的觸動事件
-    AdapterView.OnItemClickListener BombOnItemClick  = new AdapterView.OnItemClickListener() {
+    //點擊圖片 影片 炸彈訊息(在哪幾列)的觸動事件
+    AdapterView.OnItemClickListener MediaOnItemClick  = new AdapterView.OnItemClickListener() {
         @Override
         public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-            myAdapter.setSelectItem(checkbomb);
             myAdapter.notifyDataSetInvalidated();
+            cursor.moveToPosition(position);
+            switch(Integer.parseInt(cursor.getString(4))){
+                case 0 : Toast.makeText(ChatActivity.this,"this is 圖片", Toast.LENGTH_SHORT).show();
+                    break;
+                case 1 : Toast.makeText(ChatActivity.this,"this is 文字" , Toast.LENGTH_SHORT).show();
+                    break;
+                case 2 : Toast.makeText(ChatActivity.this,"this is 影片" , Toast.LENGTH_LONG).show();
+                    break;
+            }
+            //Intent intent = new Intent(ChatActivity.this, VideoView_Activity.class);
+
+            //intent.putExtra("videofilename", filearray[0].getAbsolutePath());
+            //startActivity(intent);
         }
     };
 
@@ -227,7 +273,7 @@ public class ChatActivity extends AppCompatActivity {
             //将ListView设置为置底显示，自动刷新UI，使得消息及时显示
             listview_chat.setAdapter(myAdapter);
             listview_chat.setSelection(myAdapter.getCount() - 1);
-            adddata(messagecount, friend, My, ChatHandler);
+            adddata(messagecount, friend, My, ChatHandler,0);
         }
     }
 
@@ -240,24 +286,80 @@ public class ChatActivity extends AppCompatActivity {
         map.put("mode", mode);
         chatList.add(map);
         messagecount++;
-}
+    }
 
     //添加檔案圖片進去listview
     public void addFileToListview(int who,int mode){
         HashMap<String,Object> map = new HashMap<String,Object>();
         map.put("who", who);
         map.put("img", who==0?R.drawable.mymessage:R.drawable.friendmessage);
-        map.put("mode",mode);
+        map.put("mode", mode);
         chatList.add(map);
     }
 
 
     //展現聊天紀錄到listview
     public void ShowChatHistoryToListview(){
-        Cursor cursor = sqlite.query("select * from ChatMessage" , null);
         myAdapter = new MyAdapter(this, chatList, item_layout, from, to,cursor);
         listview_chat.setAdapter(myAdapter);
     }
+
+    //創建聊天紀錄表
+    public void CreateChatHistoryTable(String TableName){
+        SQLiteDatabase db = sqlite.getWritableDatabase();
+        db.execSQL("DROP TABLE IF EXISTS " + TableName);
+        String DB_CREATE_TABLE
+                = "CREATE TABLE " + TableName + "( "
+                + "_id     INTEGER    NOT NULL,"
+                + "FromNAME   CHAR(20)   NOT NULL,"
+                + "ToName  CHAR(20),"
+                + "ChatHistory CHAR(300),"
+                + "DifferentType INTEGER NOT NULL,"
+                + "PRIMARY KEY(_id) );";
+        db.execSQL(DB_CREATE_TABLE);
+    }
+
+    //判斷聊天紀錄表是否已存在
+    public boolean TableIsExist(String TableName){
+        boolean result = false;
+        if(TableName.equals("")){
+            return false;
+        }
+        SQLiteDatabase db = null;
+        Cursor cursor = null;
+        try{
+            db = sqlite.getWritableDatabase();
+            String sql = "select count(*) as c from Sqlite_master  where type ='table' and name ='"+TableName.trim()+"' ";
+            cursor = db.rawQuery(sql,null);
+            if(cursor.moveToNext()){
+                int count = cursor.getInt(0);
+                if(count > 0){
+                    result = true;
+                }
+            }
+        }catch(Exception e){
+            e.printStackTrace();
+        }finally{
+            if(cursor != null && !cursor.isClosed()){
+                cursor.close();
+            }
+        }
+        return result;
+    }
+
+    //上傳聊天紀錄到sqlite
+    public void adddata(int ID ,String FromName , String ToName , String ChatHistory,int DifferentType){
+        SQLiteDatabase db = sqlite.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("_id",ID);
+        values.put("FromName",FromName);
+        values.put("ToName" , ToName);
+        values.put("ChatHistory", ChatHistory);
+        values.put("DifferentType",DifferentType);
+        db.insert("MessageTo" + friend , null, values);
+    }
+
+
 
     public class MyAdapter extends BaseAdapter {
         Context context;
@@ -286,7 +388,6 @@ public class ChatActivity extends AppCompatActivity {
         @Override
         public int getCount() {
                if(firstin){
-                    System.out.println(cursor.getCount());
                    return cursor.getCount();
                }
                else{
@@ -310,13 +411,11 @@ public class ChatActivity extends AppCompatActivity {
             if(firstin){
                 cursor.moveToPosition(messagecount);
                 if(cursor.getString(1).equals(My)) {
-                    System.out.println(cursor.getString(3));
                     addChatToListview(0, cursor.getString(3), 0);
                     view =listcontainer.inflate(R.layout.my_message_item, null);
                     ((TextView)view.findViewById(R.id.text_me)).setText(cursor.getString(3));
                     ((ImageView)view.findViewById(R.id.img_me)).setImageDrawable(img_userDrawable);
                 }else{
-                    System.out.println(cursor.getString(3));
                     addChatToListview(1, cursor.getString(3),0);
                     view = listcontainer.inflate(R.layout.friend_message_item, null);
                     ((TextView)view.findViewById(R.id.text_friend)).setText(cursor.getString(3));
@@ -365,21 +464,7 @@ public class ChatActivity extends AppCompatActivity {
 
         }
 
-        public void setSelectItem(ArrayList<Integer>BombSelectItem ){
-            this.BombSelectItem = BombSelectItem;
-        }
 
-    }
-
-    //上傳聊天紀錄到sqlite
-    public void adddata(int ID ,String FromName , String ToName , String ChatHistory){
-        SQLiteDatabase db = sqlite.getWritableDatabase();
-        ContentValues values = new ContentValues();
-        values.put("_id",ID);
-        values.put("FromName",FromName);
-        values.put("ToName" , ToName);
-        values.put("ChatHistory", ChatHistory);
-        db.insert("ChatMessage", null, values);
     }
 
     @Override
@@ -390,7 +475,7 @@ public class ChatActivity extends AppCompatActivity {
             addFileToListview(0, 1);
             listview_chat.setAdapter(myAdapter);
             listview_chat.setSelection(myAdapter.getCount() - 1);
-            checkbomb.add(myAdapter.getCount()-1);
+            checkbomb.add(myAdapter.getCount() - 1);
             messagecount++;
         }else{
             System.out.println("error");
