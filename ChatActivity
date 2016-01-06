@@ -237,6 +237,11 @@ public class ChatActivity extends AppCompatActivity {
         thread.start();
         chatHandler = new ChatHandler();
 
+        if(bundle.getInt("wherefrom") == 1){
+            SendFile( bundle.getString("vedioname2") ,"/storage/emulated/0/Movies/MyCameraVideo/" + bundle.getString("vedioname2") );
+            //filetype = 2;
+            //addFileToListview(0,1,"/storage/emulated/0/Movies/MyCameraVideo/" + bundle.getString("vedioname2"));
+        }
     }
 
     //點擊圖片 影片 炸彈訊息(在哪幾列)的觸動事件
@@ -254,7 +259,7 @@ public class ChatActivity extends AppCompatActivity {
                             startActivity(intent);
                 }
                     break;
-                case 2 : Toast.makeText(ChatActivity.this,"this is 影片" , Toast.LENGTH_LONG).show();
+                case 2 : {Toast.makeText(ChatActivity.this,"this is 影片" , Toast.LENGTH_LONG).show();}
                     break;
             }
 
@@ -528,14 +533,12 @@ public class ChatActivity extends AppCompatActivity {
         if(fileChooser.onActivityResult(requestCode,resultCode,data)){
             filearray = fileChooser.getChosenFiles();
             SendFile(filearray[0].getName(), filearray[0].getAbsolutePath());
+
             addFileToListview(0, 1, filearray[0].getAbsolutePath());
             listview_chat.setAdapter(myAdapter);
             listview_chat.setSelection(myAdapter.getCount() - 1);
-            if(filetype == 1){
-                adddata(messagecount, My, friend, filearray[0].getAbsolutePath(), 1, 0);
-            }else if(filetype == 2){
-                adddata(messagecount, My, friend, filearray[0].getAbsolutePath(), 2, 0);
-            }
+            adddata(messagecount, My, friend, filearray[0].getAbsolutePath(), 1, 0);
+
         }else{
             System.out.println("error");
         }
