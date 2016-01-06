@@ -190,9 +190,14 @@ public class ChatActivity extends AppCompatActivity {
         img_video.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                filetype = 2;
+                //filetype = 2;
+                Bundle bundle = new Bundle();
+                bundle.putString("friendname",friend);
+                bundle.putString("UserID",UserID);
+                bundle.putString("Username",My);
                 Intent intent = new Intent();
                 intent.setClass(ChatActivity.this, TakeVideo_Activity.class);
+                intent.putExtras(bundle);
                 startActivity(intent);
             }
         });
@@ -526,7 +531,11 @@ public class ChatActivity extends AppCompatActivity {
             addFileToListview(0, 1, filearray[0].getAbsolutePath());
             listview_chat.setAdapter(myAdapter);
             listview_chat.setSelection(myAdapter.getCount() - 1);
-            adddata(messagecount, My, friend, filearray[0].getAbsolutePath(), 1, 0);
+            if(filetype == 1){
+                adddata(messagecount, My, friend, filearray[0].getAbsolutePath(), 1, 0);
+            }else if(filetype == 2){
+                adddata(messagecount, My, friend, filearray[0].getAbsolutePath(), 2, 0);
+            }
         }else{
             System.out.println("error");
         }
